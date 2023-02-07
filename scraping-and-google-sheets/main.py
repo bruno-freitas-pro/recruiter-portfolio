@@ -1,74 +1,129 @@
+#Import logging module
+import logging
+logging.basicConfig(format='%(asctime)s | %(levelname)s: %(message)s', level=logging.INFO)
+
 #Import required modules
-print('Importing required modules...')
+logging.info('Importing required modules...')
+import pandas as pd
+import os
 from selenium import webdriver
 from webdriver_manager.chrome import ChromeDriverManager
-import pandas as pd
+from selenium.webdriver.chrome.service import Service
 from oauth2client.service_account import ServiceAccountCredentials
 import gspread
-print('Imported required modules successfully')
+logging.info('Imported required modules successfully')
 
-#Set Chromium options
-print('Setting Chrome Browser Options...')
-chromeOptions = webdriver.ChromeOptions()
-chromeOptions.add_argument('--headless')
-chromeOptions.add_argument('--no-sandbox')
-chromeOptions.add_argument('--disable-dev-shm-usage')
-print('Chrome Browser options set successfully')
+def getDfFromGoogleSheets (sheetId):
+    '''
+    Retrieves data from Google Sheets based on a Sheet ID and saves that data to a dataframe
 
-#Get required data from Google Sheets and save it to a dataframe named 'df'
-print('Retrieving data from the source sheet')
-sheetId = "1gC0p9IRByjSxZq2m5_TDE79W60Jacwsk5OKBld7X6Cc"
-sheetAsCsv = f"https://docs.google.com/spreadsheets/export?id={sheetId}&exportFormat=csv"
-df = pd.read_csv(sheetAsCsv)
-print('Data has been retrieved as follows:')
-print(df)
+    The sheetId can be obtained from a link that looks like "https://docs.google.com/spreadsheets/d/1ZAOAJeoZroFWdkD-3fBl8JPD4SBYyOkpv0i3aPye0aM"
+    '''
+    logging.info('Retrieving data from the source sheet')
+    sheetAsCsv = f"https://docs.google.com/spreadsheets/export?id={sheetId}&exportFormat=csv"
+    df = pd.read_csv(sheetAsCsv)
+    logging.info('Data retrieved successfully!')
+    print('Data has been retrieved as follows:')
+    print(df)
+    return df
 
-#Open chromium
-browserDriverName = ChromeDriverManager().install()
+def setChromeOptions(optionsTuple):
+    '''
+    Configures Google Chrome options for usage with Selenium webdriver
 
-print('Opening web browser')
-driver = webdriver.Chrome(browserDriverName, options=chromeOptions)
-print('Web browser opened successfully')
+    Takes a tuple as argument, e.g. "options = ('--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--log-level=3')"
+    '''
+    logging.info('Setting Chrome Browser Options...')
+    chromeOptions = webdriver.ChromeOptions()
+    for element in optionsTuple:
+        chromeOptions.add_argument(element)
+    logging.info('Chrome Browser options set successfully')
+    return chromeOptions
 
-#Get website titles and save them to df
-sourceColumn = 'Address'
-destinationColumn = 'Website title'
+def openChrome(options):
+    '''
+    Opens Google Chrome via Selenium Webdriver with the selected options
 
-print('Acessing websites and retrieving their title. This might take a while...')
-for index in df.index:
-    website = df[sourceColumn][index]
-    driver.get(website)
-    df.loc[index, destinationColumn] = driver.title
-print('After acessing the websites, the titles found were:')
-print(df)
+    You can generate the adequate options variable using the setChromeOptions function
+    '''
+    logging.info('Opening web browser')
+    browserDriverName = ChromeDriverManager().install()
+    driver = webdriver.Chrome(service=Service(browserDriverName), options=options)
+    logging.info('Web browser opened successfully')
+    return driver
 
-#Close the browser
-print('Closing web browser')
-driver.quit()
-print('Web browser closed successfully')
+def getWebsiteTitle(driver, df, sourceColumn, destinationColumn):
+    '''
+    Retrieves website title using Selenium
+    '''
+    logging.info('Acessing websites and retrieving their title. This might take a while, please wait')
+    for index in df.index:
+        website = df[sourceColumn][index]
+        driver.get(website)
+        df.loc[index, destinationColumn] = driver.title
+    logging.info('All websites have been accessed succesfully')
+    print('After acessing the websites, the titles found were:')
+    print(df)
+    return df
 
-#Configure gspread to communicate with Google API
-print('Checking required credentials to update the Sheet')
-credsLocation = './credentials.json'
-scope = []
-scope.append('https://spreadsheets.google.com/feeds')
-scope.append('https://www.googleapis.com/auth/drive')
+def closeChrome(driver):
+    '''
+    Closes Google Chrome
+    '''
+    logging.info('Closing web browser')
+    driver.quit()
+    logging.info('Web browser closed successfully')
 
-creds = ServiceAccountCredentials.from_json_keyfile_name(credsLocation, scope)
-client = gspread.authorize(creds)
-print('Credentials set successfully')
+def setGspreadClient (credsPath):
+    '''
+    Configures gspread client for usage
+    '''
+    logging.info('Checking required credentials to update the Sheet')
+    scope = []
+    scope.append('https://spreadsheets.google.com/feeds')
+    scope.append('https://www.googleapis.com/auth/drive')
 
-#Open the sheet, then open the desired tab
-print('Saving data to your sheet')
-sheet = client.open_by_key(sheetId)
-sheetInstance = sheet.get_worksheet(0)
+    creds = ServiceAccountCredentials.from_json_keyfile_name(credsPath, scope)
+    client = gspread.authorize(creds)
+    logging.info('Credentials set successfully')
+    return client
 
-#Update the results column, iteratively. Note: update_cell(self, row, col, value)
-col = 3
-firstRowToWrite = 2
-for index in df.index:
-    row = index + firstRowToWrite
-    value = df.loc[index, destinationColumn]
-    sheetInstance.update_cell(row=row,col=col, value=value)
-print('Your sheet was successfully updated!')
-print('END OF SCRIPT')
+def updateSheet(sheetId, df, client, column, destinationColumn, firstRowToWrite):
+    '''
+    Updates Google Sheet using gspread
+    '''
+    logging.info('Updating your sheet...')
+    sheet = client.open_by_key(sheetId)
+    sheetInstance = sheet.get_worksheet(0)
+    for index in df.index:
+        row = index + firstRowToWrite
+        value = df.loc[index, destinationColumn]
+        sheetInstance.update_cell(row=row,col=column, value=value)
+    logging.info('Your sheet was successfully updated!')
+
+
+mySheetId = "1gC0p9IRByjSxZq2m5_TDE79W60Jacwsk5OKBld7X6Cc"
+myOptions = ('--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--log-level=3')
+mySourceColumn = 'Address'
+myDestinationColumn = 'Website title'
+myCredsLocation = os.path.join(os.path.curdir, 'credentials.json')
+myDfColumn = 3
+myFirstRowToWrite = 2
+
+mydf1 = getDfFromGoogleSheets(mySheetId)
+myChromeOptions = setChromeOptions(myOptions)
+myDriver = openChrome(myChromeOptions)
+mydf2 = getWebsiteTitle(driver=myDriver,
+                        df=mydf1,
+                        sourceColumn=mySourceColumn,
+                        destinationColumn=myDestinationColumn)
+closeChrome(driver=myDriver)
+myClient = setGspreadClient(myCredsLocation)
+updateSheet(sheetId=mySheetId,
+            df=mydf2,
+            client=myClient,
+            column=myDfColumn,
+            destinationColumn=myDestinationColumn,
+            firstRowToWrite=myFirstRowToWrite)
+
+logging.info('End of script')
