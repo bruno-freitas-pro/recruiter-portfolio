@@ -1,6 +1,6 @@
-click on the button to read the text in english: [![en](https://img.shields.io/badge/lang-en-red.svg)](https://github.com/bruno-freitas-pro/recruiter-portfolio/blob/main/README.md)  
+click on the button to read the text in english:&nbsp;&nbsp;[![en](https://img.shields.io/badge/lang-en-red.svg)](https://github.com/bruno-freitas-pro/recruiter-portfolio/blob/main/README.md)  
 
-clique no botão à direita para ler em português: [![pt-br](https://img.shields.io/badge/lang-pt--br-green.svg)](https://github.com/bruno-freitas-pro/recruiter-portfolio/blob/main/README.pt-br.md)
+clique no botão à direita para ler em português:&nbsp;&nbsp;[![pt-br](https://img.shields.io/badge/lang-pt--br-green.svg)](https://github.com/bruno-freitas-pro/recruiter-portfolio/blob/main/README.pt-br.md)
 
 # recruiter-portfolio
 Are you a recruiter? Start here!  
